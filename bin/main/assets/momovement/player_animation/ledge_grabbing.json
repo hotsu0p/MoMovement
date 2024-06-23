@@ -1,0 +1,65 @@
+{
+  "name": "ledge_grabbing",
+  "author": "Anonymous",
+  "description": "Realistic hanging motion with arms straight up",
+  "version": 1,
+  "emote": {
+    "beginTick": 1,
+    "endTick": 20,
+    "stopTick": 20,
+    "isLoop": true,
+    "returnTick": 1,
+    "nsfw": false,
+    "degrees": false,
+    "moves": [
+      {
+        "tick": 1,
+        "easing": "LINEAR",
+        "rightArm": {
+          "pitch": -1.57,
+          "yaw": 0
+        },
+        "leftArm": {
+          "pitch": -1.57,
+          "yaw": 0
+        }
+      },
+      {
+        "tick": 5,
+        "easing": "INOUTQUAD",
+        "rightArm": {
+          "pitch": -0.8,
+          "yaw": 0
+        },
+        "leftArm": {
+          "pitch": -2.5,
+          "yaw": 0
+        }
+      },
+      {
+        "tick": 10,
+        "easing": "INOUTQUAD",
+        "rightArm": {
+          "pitch": -2.5,
+          "yaw": 0
+        },
+        "leftArm": {
+          "pitch": -0.8,
+          "yaw": 0
+        }
+      },
+      {
+        "tick": 15,
+        "easing": "INOUTQUAD",
+        "rightArm": {
+          "pitch": -0.8,
+          "yaw": 0
+        },
+        "leftArm": {
+          "pitch": -2.5,
+          "yaw": 0
+        }
+      }
+    ]
+  }
+}

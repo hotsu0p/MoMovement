@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "momovement",
+  "version": "${version}",
+  "name": "MoMovement - More movment!",
+  "description": "Add some style to your movement with *fully animated* dive rolls, wall runs, and more!  :3",
+  "authors": [],
+  "contact": {
+    "issues" : "https://github.com/hotsuop/MoMovement/issues",
+    "homepage": "https://modrinth.com/mod/momovement"
+  },
+  "license": "CC BY-SA 4.0",
+  "icon": "assets/momovement/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "client": [
+      "hotsuop.momovement.client.MoMovementClient"
+    ],
+    "main": [
+      "hotsuop.momovement.MoMovement"
+    ],
+    "ukulib": [
+      "hotsuop.momovement.config.UkulibHook"
+    ]
+  },
+  "mixins": [
+    "momovement.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric": "*",
+    "minecraft": "${minecraft_version}",
+    "player-animator": ">=0.3"
+  }
+}

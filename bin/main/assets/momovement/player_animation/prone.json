@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "valid": true,
+  "name": "prone",
+  "description": "MoMovement",
+  "author": "hotsuop",
+  "emote": {
+    "beginTick": 0,
+    "endTick": 6,
+    "stopTick": 7,
+    "isLoop": true,
+    "returnTick": 5,
+    "nsfw": false,
+    "degrees": true,
+    "moves": [
+      {
+        "tick": 5,
+        "easing": "EASEINOUTQUAD",
+        "body": {
+          "pitch": 15
+        }
+      }
+    ]
+  }
+}

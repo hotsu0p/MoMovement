@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "valid": true,
+  "name": "hanging",
+  "description": "Realistic hanging motion with arms straight up",
+  "author": "Anonymous",
+  "emote": {
+    "beginTick": 1,
+    "endTick": 20,
+    "stopTick": 20,
+    "isLoop": true,
+    "returnTick": 1,
+    "nsfw": false,
+    "degrees": false,
+    "moves": [
+      {
+        "tick": 1,
+        "easing": "LINEAR",
+        "rightArm": {
+          "pitch": -1.57,
+          "yaw": 0
+        },
+        "leftArm": {
+          "pitch": -1.57,
+          "yaw": 0
+        }
+      },
+      {
+        "tick": 10,
+        "easing": "INOUTQUAD",
+        "rightArm": {
+          "pitch": -1.57,
+          "yaw": 0
+        },
+        "leftArm": {
+          "pitch": -2.5,
+          "yaw": 0
+        }
+      },
+      {
+        "tick": 20,
+        "easing": "INOUTQUAD",
+        "rightArm": {
+          "pitch": -2.5,
+          "yaw": 0
+        },
+        "leftArm": {
+          "pitch": -1.57,
+          "yaw": 0
+        }
+      }
+    ]
+  }
+}

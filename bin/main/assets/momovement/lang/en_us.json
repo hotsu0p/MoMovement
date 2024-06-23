@@ -1,0 +1,28 @@
+{
+  "text.config.momovement.title" : "MoMovement Config",
+  "text.config.momovement.option.enableMoMovement" : "Enable Mod",
+
+  "text.config.momovement.category.diveRoll" : "Dive-Roll Options",
+  "text.config.momovement.option.diveRoll.enabled" : "Enabled",
+  "text.config.momovement.option.diveRoll.staminaCost" : "Stamina Cost",
+  "text.config.momovement.option.diveRoll.speedBoostMult" : "Speed Boost",
+  "text.config.momovement.option.diveRoll.cooldown" : "Cooldown (Ticks)",
+  "text.config.momovement.option.diveRoll.whenSwimming" : "Enabled While Underwater",
+  "text.config.momovement.option.diveRoll.whenFlying" : "Enabled While Using Elytra",
+
+  "text.config.momovement.category.slide" : "Slide Options",
+  "text.config.momovement.option.slide.enabled" : "Enabled",
+  "text.config.momovement.option.slide.staminaCost" : "Stamina Cost",
+  "text.config.momovement.option.slide.speedBoostMult" : "Speed Boost",
+  "text.config.momovement.option.slide.cooldown" : "Cooldown (Ticks)",
+
+  "text.config.momovement.category.wallRun" : "Wall-Run Options",
+  "text.config.momovement.option.wallRun.enabled" : "Enabled",
+  "text.config.momovement.option.wallRun.staminaCost" : "Stamina Cost",
+  "text.config.momovement.option.wallRun.speedBoostMult" : "Speed Boost",
+  "text.config.momovement.option.wallRun.cooldown" : "Cooldown (Ticks)",
+  "text.config.momovement.option.wallRun.durationTicks" : "Duration (Ticks)",
+
+  "key.momovement.up" : "MoMovement Up",
+  "key.momovement.down" : "MoMovement Down"
+}

@@ -5,29 +5,21 @@ import hotsuop.momovement.IMoPlayer;
 import hotsuop.momovement.MoveState;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
 import net.minecraft.block.FenceBlock;
 import net.minecraft.block.FenceGateBlock;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.*;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.damage.DeathMessageType;
 import net.minecraft.entity.player.HungerManager;
 import net.minecraft.entity.player.PlayerAbilities;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.particle.ParticleTypes;
 import net.minecraft.registry.tag.BlockTags;
-import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.RaycastContext;
 import net.minecraft.world.World;
-
-import java.util.Timer;
-import java.util.TimerTask;
 
 import org.slf4j.Logger;
 import org.spongepowered.asm.mixin.Final;
@@ -102,27 +94,28 @@ public abstract class PlayerEntityMixin extends LivingEntity implements IMoPlaye
     private void updateCurrentMoveState() {
         if (lastMoveState != moveState) {
             lastMoveState = moveState;
-            if (moveState == MoveState.ROLLING) {
+            EntityPose newPose = null;
+    
+            if (moveState == MoveState.ROLLING || moveState == MoveState.PRONE) {
                 rollTickCounter = 0;
-                setPose(EntityPose.SWIMMING);
+                newPose = EntityPose.SWIMMING;
+            } else if (moveState == MoveState.HANGING) {
+                newPose = EntityPose.STANDING;
             }
-            if (moveState == MoveState.PRONE) {
-                rollTickCounter = 0;
-                setPose(EntityPose.SWIMMING);
+    
+            if (newPose != null && getPose() != newPose) {
+                setPose(newPose);
             }
-            if (moveState == MoveState.HANGING) {
-                setPose(EntityPose.STANDING);
-            }
+    
             if (this.isMainPlayer()) {
                 MoMovement.moveStateUpdater.setMoveState((PlayerEntity) (Object) this, moveState);
             }
             MoMovement.moveStateUpdater.setAnimationState((PlayerEntity) (Object) this, moveState);
+    
             updatePose();
             calculateDimensions();
         }
     }
-
-
     @Unique
     private static Vec3d momovement_movementInputToVelocity(Vec3d movementInput, double speed, float yaw) {
         double d = movementInput.lengthSquared();
@@ -305,8 +298,65 @@ public abstract class PlayerEntityMixin extends LivingEntity implements IMoPlaye
         MoveState currentState = momovement_getMoveState();
         if (currentState != null && currentState != MoveState.NONE) cir.setReturnValue(currentState.dimensions.height * 0.85f);
     }
+  private int vaultStep = 0;
+private final int totalVaultSteps = 10; // Steps for detailed vault
+private final double vaultHeight = 1.25; // Height to vault (slightly higher than a block)
+private final double forwardDistance = 1.0; // Forward distance to vault
+private boolean isVaulting = false;
+@Unique
+private void startVaulting() {
+    if (moveState != MoveState.VAULTING) {
+        moveState = MoveState.VAULTING;
+        momovement_movementInputToVelocity(new Vec3d(0, 0, 1), 0.1f, getYaw());
+        setSprinting(true);
+        vaultStep = 0;
+        isVaulting = true;
 
-    @Inject(method = "tick", at = @At("HEAD"))
+        LOGGER.info("Vaulting started");
+    }
+}
+
+@Unique
+private void handleVaulting() {
+    if (isVaulting && moveState == MoveState.VAULTING) {
+        double yOffset = 0;
+        double forwardOffset = 0;
+
+        // Three phases: rapid ascent, forward movement, rapid descent
+        if (vaultStep < totalVaultSteps / 3) {
+            // Rapid ascent
+            yOffset = vaultHeight * (3.0 * vaultStep / totalVaultSteps);
+        } else if (vaultStep < 2 * totalVaultSteps / 3) {
+            // Forward movement at peak height
+            yOffset = vaultHeight;
+            forwardOffset = forwardDistance * ((3.0 * vaultStep / totalVaultSteps) - 1);
+        } else {
+            // Rapid descent
+            yOffset = vaultHeight * (3.0 * (totalVaultSteps - vaultStep) / totalVaultSteps);
+            forwardOffset = forwardDistance;
+        }
+
+        Vec3d currentPos = getPos();
+        double yaw = Math.toRadians(getYaw());
+        double xOffset = forwardOffset * Math.sin(yaw);
+        double zOffset = forwardOffset * Math.cos(yaw);
+
+        Vec3d stepVelocity = new Vec3d(xOffset / totalVaultSteps, yOffset / totalVaultSteps, zOffset / totalVaultSteps);
+
+        setVelocity(stepVelocity);
+        setPos(currentPos.x + stepVelocity.x, currentPos.y + yOffset / totalVaultSteps, currentPos.z + stepVelocity.z);
+
+        vaultStep++;
+
+        if (vaultStep >= totalVaultSteps) {
+            moveState = MoveState.NONE;
+            isVaulting = false;
+            LOGGER.info("Vaulting handled");
+        }
+    }
+}
+
+@Inject(method = "tick", at = @At("HEAD"))
 private void momovement_tick(CallbackInfo info) {
     if (!MoMovement.getConfig().enableMoMovement) return;
 
@@ -329,7 +379,6 @@ private void momovement_tick(CallbackInfo info) {
         if (MoMovement.getConfig().ledgeGrabEnabled) momovement_LedgeGrab();
         if (MoMovement.getConfig().vaultingEnabled && canVault() && MoMovement.INPUT.ismoveUpKeyPressed()) {
             startVaulting();
-            moveState = MoveState.VAULTING;
         }
 
         addVelocity(bonusVelocity);
@@ -339,43 +388,25 @@ private void momovement_tick(CallbackInfo info) {
     updateCurrentMoveState();
 }
 
-private int vaultStep = 0;
+@Inject(method = "travel", at = @At("HEAD"))
+private void momovement_travel(Vec3d movementInput, CallbackInfo info) {
+    if (!isMainPlayer() || !MoMovement.getConfig().enableMoMovement || abilities.flying || getControllingVehicle() != null)
+        return;
 
-
-@Unique
-private void startVaulting() {
-    moveState = MoveState.VAULTING;
-    bonusVelocity = momovement_movementInputToVelocity(new Vec3d(0, 0, 1), 0.1f, getYaw());
-    setSprinting(true);
-
-    LOGGER.info("Vaulting started");
-}
-
-@Unique
-private void handleVaulting() {
-    double vaultHeight = 0.1; 
-    int vaultSteps = 20; // Increase the number of steps to make the vaulting slower
-    double stepHeight = vaultHeight / vaultSteps;
+    momovement_lastSprintingState = isSprinting();
 
     if (moveState == MoveState.VAULTING) {
-        Vec3d currentPos = getPos();
-        Vec3d vaultVelocity = new Vec3d(getVelocity().x, stepHeight, getVelocity().z);
-        setVelocity(vaultVelocity);
-        
-        for (int i = 0; i < vaultSteps; i++) {
-            setPos(currentPos.x + vaultVelocity.x, currentPos.y + (stepHeight * i), currentPos.z + vaultVelocity.z);
-            // Update currentPos to the new position
-            currentPos = getPos();
-        }
+        handleVaulting();
+        return;
+    }
 
+    if (MoMovement.INPUT.ismoveDownKeyPressed() && !MoMovement.INPUT.ismoveDownKeyPressedLastTick()) {
+        handleSpecialMovements();
+    } else if (moveState == MoveState.PRONE) {
         moveState = MoveState.NONE;
-        LOGGER.info("Vaulting handled");
     }
 }
 
-
-
-    
 
     private void handleRolling() {
         rollTickCounter++;
@@ -397,24 +428,6 @@ private void handleVaulting() {
         if (slideCooldown > 0) slideCooldown--;
     }
 
-    @Inject(method = "travel", at = @At("HEAD"))
-    private void momovement_travel(Vec3d movementInput, CallbackInfo info) {
-        if (!isMainPlayer() || !MoMovement.getConfig().enableMoMovement || abilities.flying || getControllingVehicle() != null)
-            return;
-    
-        momovement_lastSprintingState = isSprinting();
-    
-        if (moveState == MoveState.VAULTING) {
-            handleVaulting();
-            return;
-        }
-    
-        if (MoMovement.INPUT.ismoveDownKeyPressed() && !MoMovement.INPUT.ismoveDownKeyPressedLastTick()) {
-            handleSpecialMovements();
-        } else if (moveState == MoveState.PRONE) {
-            moveState = MoveState.NONE;
-        }
-    }
     
     
 @Unique
@@ -459,24 +472,24 @@ private boolean canVault() {
                 && momovement_isValidForMovement(false, false);
     }
 
-    private void performDiveRoll(MoMovementConfig conf) {
-        diveCooldown = conf.getDiveRollCoolDown() / 2;
-        hungerManager.addExhaustion(conf.getDiveRollStaminaCost());
-        moveState = MoveState.ROLLING;
-        bonusVelocity = momovement_movementInputToVelocity(Vec3d.ZERO, 0.15f * conf.getDiveRollSpeedBoostMultiplier(), getYaw());
-        setSprinting(true);
-        playFeedback();
-    }
+    
+private void performDiveRoll(MoMovementConfig conf) {
+    diveCooldown = conf.getDiveRollCoolDown() / 2;
+    hungerManager.addExhaustion(conf.getDiveRollStaminaCost());
+    moveState = MoveState.ROLLING;
+    bonusVelocity = momovement_movementInputToVelocity(Vec3d.ZERO, 0.15f * conf.getDiveRollSpeedBoostMultiplier(), getYaw());
+    setSprinting(true);
+    playFeedback();
+}
 
-    private void performSlide(MoMovementConfig conf) {
-        slideCooldown = conf.getSlideCoolDown() / 2;
-        hungerManager.addExhaustion(conf.getSlideStaminaCost());
-        moveState = MoveState.SLIDING;
-        bonusVelocity = momovement_movementInputToVelocity(new Vec3d(0, 0, 1), 0.25f * conf.getSlideSpeedBoostMultiplier(), getYaw());
-        setSprinting(true);
-        playFeedback();
-    }
-
+private void performSlide(MoMovementConfig conf) {
+    slideCooldown = conf.getSlideCoolDown() / 2;
+    hungerManager.addExhaustion(conf.getSlideStaminaCost());
+    moveState = MoveState.SLIDING;
+    bonusVelocity = momovement_movementInputToVelocity(new Vec3d(0, 0, 1), 0.25f * conf.getSlideSpeedBoostMultiplier(), getYaw());
+    setSprinting(true);
+    playFeedback();
+}
     private void playFeedback() {
         // TODO: Implement sound feedback
     }

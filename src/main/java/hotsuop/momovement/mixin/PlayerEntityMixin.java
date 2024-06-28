@@ -305,76 +305,117 @@ public abstract class PlayerEntityMixin extends LivingEntity implements IMoPlaye
         MoveState currentState = momovement_getMoveState();
         if (currentState != null && currentState != MoveState.NONE) cir.setReturnValue(currentState.dimensions.height * 0.85f);
     }
-
+    private int vaultStep = 0;
+    private final int totalVaultSteps = 6; // Fewer steps for a clunkier vault
+    private final double vaultHeight = 1.25; // Total height to vault (slightly higher than a block)
+    private final double forwardDistance = 1.0; // Total forward distance to vault
+    private boolean isVaulting = false;
+    private Vec3d initialVelocity;
+    
+    @Unique
+    private void startVaulting() {
+        if (moveState != MoveState.VAULTING) {
+            moveState = MoveState.VAULTING;
+            initialVelocity = momovement_movementInputToVelocity(new Vec3d(0, 0, 1), 0.1f, getYaw());
+            setSprinting(true);
+            vaultStep = 0;
+            isVaulting = true;
+    
+            LOGGER.info("Vaulting started");
+        }
+    }
+    
+    @Unique
+    private void handleVaulting() {
+        if (isVaulting && moveState == MoveState.VAULTING) {
+            double yOffset = 0;
+            double forwardOffset = 0;
+    
+            // Three phases: rapid ascent, forward movement, rapid descent
+            if (vaultStep < totalVaultSteps / 3) {
+                // Rapid ascent
+                yOffset = vaultHeight * (3.0 * vaultStep / totalVaultSteps);
+            } else if (vaultStep < 2 * totalVaultSteps / 3) {
+                // Forward movement at peak height
+                yOffset = vaultHeight;
+                forwardOffset = forwardDistance * ((3.0 * vaultStep / totalVaultSteps) - 1);
+            } else {
+                // Rapid descent
+                yOffset = vaultHeight * (3.0 * (totalVaultSteps - vaultStep) / totalVaultSteps);
+                forwardOffset = forwardDistance;
+            }
+    
+            Vec3d currentPos = getPos();
+            double yaw = Math.toRadians(getYaw());
+            double xOffset = forwardOffset * Math.sin(yaw);
+            double zOffset = forwardOffset * Math.cos(yaw);
+    
+            Vec3d stepVelocity = new Vec3d(xOffset / totalVaultSteps, yOffset / totalVaultSteps, zOffset / totalVaultSteps);
+    
+            setVelocity(stepVelocity);
+            setPos(currentPos.x + stepVelocity.x, currentPos.y + yOffset / totalVaultSteps, currentPos.z + stepVelocity.z);
+    
+            vaultStep++;
+    
+            if (vaultStep >= totalVaultSteps) {
+                moveState = MoveState.NONE;
+                isVaulting = false;
+                LOGGER.info("Vaulting handled");
+            }
+        }
+    }
+    
     @Inject(method = "tick", at = @At("HEAD"))
-private void momovement_tick(CallbackInfo info) {
-    if (!MoMovement.getConfig().enableMoMovement) return;
-
-    if (this.isMainPlayer()) {
-        if (abilities.flying || getControllingVehicle() != null) {
-            moveState = MoveState.NONE;
-            updateCurrentMoveState();
+    private void momovement_tick(CallbackInfo info) {
+        if (!MoMovement.getConfig().enableMoMovement) return;
+    
+        if (this.isMainPlayer()) {
+            if (abilities.flying || getControllingVehicle() != null) {
+                moveState = MoveState.NONE;
+                updateCurrentMoveState();
+                return;
+            }
+    
+            if (moveState == MoveState.ROLLING) {
+                handleRolling();
+            }
+    
+            if (moveState == MoveState.SLIDING && !MoMovement.INPUT.ismoveDownKeyPressed()) {
+                moveState = MoveState.NONE;
+            }
+    
+            if (MoMovement.getConfig().wallRunEnabled) momovement_WallRun();
+            if (MoMovement.getConfig().ledgeGrabEnabled) momovement_LedgeGrab();
+            if (MoMovement.getConfig().vaultingEnabled && canVault() && MoMovement.INPUT.ismoveUpKeyPressed()) {
+                startVaulting();
+            }
+    
+            addVelocity(bonusVelocity);
+            bonusVelocity = bonusVelocity.multiply(getBonusDecay(), 0, getBonusDecay());
+        }
+    
+        updateCurrentMoveState();
+    }
+    
+    @Inject(method = "travel", at = @At("HEAD"))
+    private void momovement_travel(Vec3d movementInput, CallbackInfo info) {
+        if (!isMainPlayer() || !MoMovement.getConfig().enableMoMovement || abilities.flying || getControllingVehicle() != null)
+            return;
+    
+        momovement_lastSprintingState = isSprinting();
+    
+        if (moveState == MoveState.VAULTING) {
+            handleVaulting();
             return;
         }
-
-        if (moveState == MoveState.ROLLING) {
-            handleRolling();
-        }
-
-        if (moveState == MoveState.SLIDING && !MoMovement.INPUT.ismoveDownKeyPressed()) {
+    
+        if (MoMovement.INPUT.ismoveDownKeyPressed() && !MoMovement.INPUT.ismoveDownKeyPressedLastTick()) {
+            handleSpecialMovements();
+        } else if (moveState == MoveState.PRONE) {
             moveState = MoveState.NONE;
         }
-
-        if (MoMovement.getConfig().wallRunEnabled) momovement_WallRun();
-        if (MoMovement.getConfig().ledgeGrabEnabled) momovement_LedgeGrab();
-        if (MoMovement.getConfig().vaultingEnabled && canVault() && MoMovement.INPUT.ismoveUpKeyPressed()) {
-            startVaulting();
-            moveState = MoveState.VAULTING;
-        }
-
-        addVelocity(bonusVelocity);
-        bonusVelocity = bonusVelocity.multiply(getBonusDecay(), 0, getBonusDecay());
     }
-
-    updateCurrentMoveState();
-}
-
-private int vaultStep = 0;
-
-
-@Unique
-private void startVaulting() {
-    moveState = MoveState.VAULTING;
-    bonusVelocity = momovement_movementInputToVelocity(new Vec3d(0, 0, 1), 0.1f, getYaw());
-    setSprinting(true);
-
-    LOGGER.info("Vaulting started");
-}
-
-@Unique
-private void handleVaulting() {
-    double vaultHeight = 0.1; 
-    int vaultSteps = 20; // Increase the number of steps to make the vaulting slower
-    double stepHeight = vaultHeight / vaultSteps;
-
-    if (moveState == MoveState.VAULTING) {
-        Vec3d currentPos = getPos();
-        Vec3d vaultVelocity = new Vec3d(getVelocity().x, stepHeight, getVelocity().z);
-        setVelocity(vaultVelocity);
-        
-        for (int i = 0; i < vaultSteps; i++) {
-            setPos(currentPos.x + vaultVelocity.x, currentPos.y + (stepHeight * i), currentPos.z + vaultVelocity.z);
-            // Update currentPos to the new position
-            currentPos = getPos();
-        }
-
-        moveState = MoveState.NONE;
-        LOGGER.info("Vaulting handled");
-    }
-}
-
-
-
+    
     
 
     private void handleRolling() {
@@ -397,24 +438,6 @@ private void handleVaulting() {
         if (slideCooldown > 0) slideCooldown--;
     }
 
-    @Inject(method = "travel", at = @At("HEAD"))
-    private void momovement_travel(Vec3d movementInput, CallbackInfo info) {
-        if (!isMainPlayer() || !MoMovement.getConfig().enableMoMovement || abilities.flying || getControllingVehicle() != null)
-            return;
-    
-        momovement_lastSprintingState = isSprinting();
-    
-        if (moveState == MoveState.VAULTING) {
-            handleVaulting();
-            return;
-        }
-    
-        if (MoMovement.INPUT.ismoveDownKeyPressed() && !MoMovement.INPUT.ismoveDownKeyPressedLastTick()) {
-            handleSpecialMovements();
-        } else if (moveState == MoveState.PRONE) {
-            moveState = MoveState.NONE;
-        }
-    }
     
     
 @Unique

@@ -14,7 +14,7 @@ public class MoMovementConfig implements Serializable {
         enableMoMovement = true;
         diveRollEnabled = true;
         diveRollStaminaCost = 50;
-        diveRollSpeedBoostMultiplier = 1;
+        diveRollSpeedBoostMultiplier = 1.1;
         climbingEnabled = true; // Default value for climbing enabled
         climbingSpeed = 0.0002;   
         diveRollCoolDown = 0;
@@ -22,7 +22,7 @@ public class MoMovementConfig implements Serializable {
         diveRollWhenFlying = false;
         wallRunEnabled = true;
         wallRunStaminaCost = 0;
-        wallRunSpeedBoostMultiplier = 1;
+        wallRunSpeedBoostMultiplier = 1.1;
         wallRunDurationTicks = 60;
         maxWallRunSpeed = 0.5; 
         slideEnabled = true;

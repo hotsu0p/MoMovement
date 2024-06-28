@@ -94,27 +94,28 @@ public abstract class PlayerEntityMixin extends LivingEntity implements IMoPlaye
     private void updateCurrentMoveState() {
         if (lastMoveState != moveState) {
             lastMoveState = moveState;
-            if (moveState == MoveState.ROLLING) {
+            EntityPose newPose = null;
+    
+            if (moveState == MoveState.ROLLING || moveState == MoveState.PRONE) {
                 rollTickCounter = 0;
-                setPose(EntityPose.SWIMMING);
+                newPose = EntityPose.SWIMMING;
+            } else if (moveState == MoveState.HANGING) {
+                newPose = EntityPose.STANDING;
             }
-            if (moveState == MoveState.PRONE) {
-                rollTickCounter = 0;
-                setPose(EntityPose.SWIMMING);
+    
+            if (newPose != null && getPose() != newPose) {
+                setPose(newPose);
             }
-            if (moveState == MoveState.HANGING) {
-                setPose(EntityPose.STANDING);
-            }
+    
             if (this.isMainPlayer()) {
                 MoMovement.moveStateUpdater.setMoveState((PlayerEntity) (Object) this, moveState);
             }
             MoMovement.moveStateUpdater.setAnimationState((PlayerEntity) (Object) this, moveState);
+    
             updatePose();
             calculateDimensions();
         }
     }
-
-
     @Unique
     private static Vec3d momovement_movementInputToVelocity(Vec3d movementInput, double speed, float yaw) {
         double d = movementInput.lengthSquared();
@@ -471,24 +472,24 @@ private boolean canVault() {
                 && momovement_isValidForMovement(false, false);
     }
 
-    private void performDiveRoll(MoMovementConfig conf) {
-        diveCooldown = conf.getDiveRollCoolDown() / 2;
-        hungerManager.addExhaustion(conf.getDiveRollStaminaCost());
-        moveState = MoveState.ROLLING;
-        bonusVelocity = momovement_movementInputToVelocity(Vec3d.ZERO, 0.15f * conf.getDiveRollSpeedBoostMultiplier(), getYaw());
-        setSprinting(true);
-        playFeedback();
-    }
+    
+private void performDiveRoll(MoMovementConfig conf) {
+    diveCooldown = conf.getDiveRollCoolDown() / 2;
+    hungerManager.addExhaustion(conf.getDiveRollStaminaCost());
+    moveState = MoveState.ROLLING;
+    bonusVelocity = momovement_movementInputToVelocity(Vec3d.ZERO, 0.15f * conf.getDiveRollSpeedBoostMultiplier(), getYaw());
+    setSprinting(true);
+    playFeedback();
+}
 
-    private void performSlide(MoMovementConfig conf) {
-        slideCooldown = conf.getSlideCoolDown() / 2;
-        hungerManager.addExhaustion(conf.getSlideStaminaCost());
-        moveState = MoveState.SLIDING;
-        bonusVelocity = momovement_movementInputToVelocity(new Vec3d(0, 0, 1), 0.25f * conf.getSlideSpeedBoostMultiplier(), getYaw());
-        setSprinting(true);
-        playFeedback();
-    }
-
+private void performSlide(MoMovementConfig conf) {
+    slideCooldown = conf.getSlideCoolDown() / 2;
+    hungerManager.addExhaustion(conf.getSlideStaminaCost());
+    moveState = MoveState.SLIDING;
+    bonusVelocity = momovement_movementInputToVelocity(new Vec3d(0, 0, 1), 0.25f * conf.getSlideSpeedBoostMultiplier(), getYaw());
+    setSprinting(true);
+    playFeedback();
+}
     private void playFeedback() {
         // TODO: Implement sound feedback
     }

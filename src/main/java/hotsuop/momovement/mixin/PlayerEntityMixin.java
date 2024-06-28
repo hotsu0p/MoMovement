@@ -302,13 +302,11 @@ private final int totalVaultSteps = 10; // Steps for detailed vault
 private final double vaultHeight = 1.25; // Height to vault (slightly higher than a block)
 private final double forwardDistance = 1.0; // Forward distance to vault
 private boolean isVaulting = false;
-private Vec3d initialVelocity;
-
 @Unique
 private void startVaulting() {
     if (moveState != MoveState.VAULTING) {
         moveState = MoveState.VAULTING;
-        initialVelocity = momovement_movementInputToVelocity(new Vec3d(0, 0, 1), 0.1f, getYaw());
+        momovement_movementInputToVelocity(new Vec3d(0, 0, 1), 0.1f, getYaw());
         setSprinting(true);
         vaultStep = 0;
         isVaulting = true;
